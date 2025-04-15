@@ -1,0 +1,52 @@
+package io.cdap.wrangler.steps.transformation;
+
+import io.cdap.wrangler.api.*;
+import io.cdap.wrangler.api.parser.*;
+import io.cdap.wrangler.api.annotations.Public;
+
+import java.util.List;
+
+@Public
+@DirectiveInfo(
+  name = "aggregate-stats",
+  description = "Computes total, average, max, and min of a numerical column"
+)
+public class AggregateStats implements Directive {
+    @ColumnName
+    private String column;
+
+    @Override
+    public void initialize(DirectiveContext context) {
+        // No special setup needed
+    }
+
+    @Override
+    public List<Row> execute(List<Row> rows, Arguments arguments) throws DirectiveExecutionException {
+        double total = 0;
+        double max = Double.NEGATIVE_INFINITY;
+        double min = Double.POSITIVE_INFINITY;
+
+        for (Row row : rows) {
+            Object value = row.getValue(column);
+            if (value instanceof Number) {
+                double v = ((Number) value).doubleValue();
+                total += v;
+                if (v > max) max = v;
+                if (v < min) min = v;
+            } else {
+                throw new DirectiveExecutionException("Non-numeric value in column: " + column);
+            }
+        }
+
+        double average = total / rows.size();
+
+        Row result = new Row();
+        result.add("total", total);
+        result.add("average", average);
+        result.add("max", max);
+        result.add("min", min);
+
+        rows.add(result);
+        return rows;
+    }
+}
